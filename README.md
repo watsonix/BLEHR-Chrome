@@ -1,15 +1,15 @@
-# Beats by Watson
+# BLEHR-Chrome
 
-based on https://github.com/WebBluetoothCG/demos.git
+Take RR interval data via Bluetooth Low Energy directly into Chrome. 
+
+Report current HR, HRV (SDRR, configurable window) and give a graph of history of HRV. After configurable number of intervals, export RRI sequence to file. 
+
+based originally on https://github.com/WebBluetoothCG/demos.git
+
 
 ## Running locally
 
-1. enable bluetooth support in Chrome at `chrome://flags/#enable-web-bluetooth` and restart Chrome
-2. run the server (in this directory)
-  * In Python 2: run `python -m SimpleHTTPServer 6900`
-  * In Python 3: run `python -m http.server 6900`
-3. go to `localhost:6900` in Chrome and click the heart to connect
+1. enable bluetooth support in Chrome at `chrome://flags/#enable-web-bluetooth`
+2. run `python -m SimpleHTTPServer 6900`
+3. go to `localhost:6900` in Chrome
 
-## Demo
-
-https://diracdeltas.github.io/beatsbywatson/

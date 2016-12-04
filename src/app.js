@@ -4,8 +4,18 @@ var canvas = document.querySelector('canvas')
 var statusText = document.querySelector('#statusText')
 var variabilityText = document.querySelector('#variabilityText')
 var heartRates = []
+var rrIntervals = []
 var variability = []
-const WINDOW_SIZE = 7
+const STD_WINDOW_SIZE = 30
+
+//export settings
+exportOn = true
+exportFilename = 'web_bluetooth2.rri'
+rrExported = false
+
+//misc settings
+const RRI_MAX = 300
+const VARIABILITY_MAX = 300
 
 statusText.addEventListener('click', function () {
   statusText.className = ''
@@ -22,16 +32,26 @@ statusText.addEventListener('click', function () {
 function handleHeartRateMeasurement (heartRateMeasurement) {
   heartRateMeasurement.addEventListener('characteristicvaluechanged', event => {
     var heartRateMeasurement = heartRateSensor.parseHeartRate(event.target.value)
-    statusText.innerHTML = heartRateMeasurement.heartRate + ' &#x2764;'
-    heartRates.push(heartRateMeasurement.heartRate)
-    let v = 0
-    if (heartRates.length < WINDOW_SIZE) {
-      v = standardDeviation(heartRates)
-    } else {
-      v = standardDeviation(heartRates.slice(heartRates.length - WINDOW_SIZE))
+    // statusText.innerHTML = heartRateMeasurement.heartRate + ' &#x2764;' //print heart rate measurement to status
+    statusText.innerHTML = heartRateMeasurement.rrIntervals.toString() + ' &#x2764;' //print latest collected RR intervals to status
+    console.log(rrIntervals) //print all intervals to console
+    // heartRates.push(heartRateMeasurement.heartRate) //keep track of heart rates
+    rrIntervals.push.apply(rrIntervals, heartRateMeasurement.rrIntervals)
+    while (rrIntervals.length > RRI_MAX) { rrIntervals.shift() } 
+
+    //for exporting (turn on with exportOn flag)
+    if (exportOn && rrIntervals.length > RRI_MAX - 1 && !rrExported) {
+      exportRRIData()
+      rrExported = true
     }
+ 
+    //calc HRV and manage HRV history
+    let v = 0
+    v = standardDeviation(rrIntervals.slice(rrIntervals.length - STD_WINDOW_SIZE))
     variabilityText.innerHTML = v
     variability.push(v)
+    while (variability.length > VARIABILITY_MAX) { variability.shift() } 
+
     drawWaves()
   })
 }
@@ -58,6 +78,7 @@ function standardDeviation (data) {
 }
 
 function drawWaves () {
+  const MAX_HEIGHT = 140
   window.requestAnimationFrame(() => {
     canvas.width = parseInt(window.getComputedStyle(canvas).width.slice(0, -2)) * window.devicePixelRatio
     canvas.height = parseInt(window.getComputedStyle(canvas).height.slice(0, -2)) * window.devicePixelRatio
@@ -69,7 +90,7 @@ function drawWaves () {
     context.clearRect(0, 0, canvas.width, canvas.height)
     context.strokeStyle = '#FF0000'
     for (let i = 0; i < Math.max(variability.length, max); i++) {
-      var barHeight = Math.round(variability[i + offset] * canvas.height / 10)
+      var barHeight = Math.round(variability[i + offset] * canvas.height / MAX_HEIGHT)
       context.rect(11 * i + margin, canvas.height - barHeight, margin, Math.max(0, barHeight - margin))
       context.stroke()
     }
@@ -83,3 +104,25 @@ document.addEventListener('visibilitychange', () => {
     drawWaves()
   }
 })
+
+//from http://stackoverflow.com/a/7160827/695804
+function exportRRIData () {
+  window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
+
+  window.requestFileSystem(window.TEMPORARY, 1024*1024, function(fs) {
+    fs.root.getFile(exportFilename, {create: true}, function(fileEntry) { // test.bin is filename
+      fileEntry.createWriter(function(fileWriter) {
+        var blob = new Blob([rrIntervals]);
+
+        fileWriter.addEventListener("writeend", function() {
+          // navigate to file, will download
+          location.href = fileEntry.toURL();
+        }, false);
+
+        fileWriter.write(blob);
+      }, function() {});
+    }, function() {});
+  }, function() {});
+}
+
+
